@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Star's Cyberpunk Café + Dress-Up</title>
+<style>
+body{margin:0;background:#050510;font-family:monospace;overflow:hidden;}
+.world{width:800px;height:600px;margin:auto;margin-top:20px;position:relative;overflow:hidden;background:#050510;border:2px solid #333;}
+.room{width:100%;height:100%;position:absolute;display:none;}
+.active{display:block;}
+.player{width:40px;height:40px;position:absolute;border-radius:6px;box-shadow:0 0 15px cyan;z-index:10;transition:0.2s;}
+.star{width:60px;height:60px;position:absolute;background:linear-gradient(45deg,#ff4da6,#7a5cff);border-radius:50%;box-shadow:0 0 25px violet;z-index:9;}
+.item{position:absolute;width:50px;height:50px;border-radius:6px;cursor:pointer;box-shadow:0 0 15px #ff7ae6;z-index:5;}
+.table{background:#2a1a44;}
+.counter{background:#111;}
+.book{background:#ff4da6;}
+.coat{background:#7a5cff;}
+.rack{background:#44d1b6;}
+.vendor{background:#ffaa00;}
+.door{width:60px;height:80px;position:absolute;background:#fff;opacity:0.2;box-shadow:0 0 20px white;cursor:pointer;z-index:7;}
+.fashion-card{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#111;padding:20px;border-radius:12px;display:none;width:250px;text-align:center;box-shadow:0 0 30px #ff4da6;z-index:20;}
+.fashion-card img{width:100px;height:100px;border-radius:8px;margin-bottom:10px;}
+.fashion-card button{margin-top:10px;padding:8px 15px;border:none;border-radius:8px;cursor:pointer;}
+.wardrobe{position:absolute;top:10px;right:10px;width:200px;height:250px;background:#111;border:2px solid #ff4da6;border-radius:12px;padding:10px;color:white;overflow:auto;z-index:15;}
+.wardrobe h4{text-align:center;margin:5px;}
+.wardrobe img{width:50px;height:50px;margin:5px;border-radius:6px;cursor:pointer;}
+.rain{
+  position:absolute;
+  width:2px;
+  height:12px;
+  background:cyan;
+  opacity:0.7;
+  top:-20px;
+  z-index:1;
+  animation-name:fall;
+  animation-timing-function:linear;
+  animation-iteration-count:infinite;
+}
+@keyframes fall{
+  0%{transform:translateY(-20px);}
+  100%{transform:translateY(620px);}
+}
+</style>
+</head>
+<body>
+
+<div class="world">
+
+<!-- ROOMS -->
+<div id="cafe" class="room active">
+<div id="player" class="player"></div>
+<div id="star" class="star" style="left:350px;top:200px;"></div>
+<div class="item table" style="left:200px;top:400px;"></div>
+<div class="item table" style="left:500px;top:350px;"></div>
+<div class="item counter" style="left:300px;top:500px;"></div>
+<div class="door" style="left:50px;top:250px;" data-room="library"></div>
+<div class="door" style="right:50px;top:250px;" data-room="wardrobe"></div>
+<div class="door" style="left:350px;top:50px;" data-room="market"></div>
+</div>
+
+<div id="library" class="room">
+<div class="item book" style="left:350px;top:200px;"></div>
+<div class="door" style="left:350px;bottom:20px;" data-room="cafe"></div>
+</div>
+
+<div id="wardrobe" class="room">
+<div class="item coat" style="left:300px;top:200px;"></div>
+<div class="item rack" style="left:450px;top:250px;"></div>
+<div class="door" style="left:350px;bottom:20px;" data-room="cafe"></div>
+</div>
+
+<div id="market" class="room">
+<div class="item vendor" style="left:350px;top:200px;"></div>
+<div class="door" style="left:350px;bottom:20px;" data-room="cafe"></div>
+</div>
+
+<!-- FASHION CARD -->
+<div id="fashionCard" class="fashion-card">
+<img id="fashionImg" src="">
+<h3 id="fashionName"></h3>
+<p id="fashionDesc"></p>
+<a id="fashionLink" target="_blank"><button>Wear / Try On</button></a>
+<br><button onclick="closeFashionCard()">Close</button>
+</div>
+
+<!-- WARDROBE PANEL -->
+<div class="wardrobe">
+<h4>Your Star Wardrobe</h4>
+<div id="wardrobeItems"></div>
+</div>
+
+</div>
+
+<script>
+let currentRoom="cafe";
+let player=document.getElementById("player");
+let fashionCard=document.getElementById("fashionCard");
+let fashionImg=document.getElementById("fashionImg");
+let fashionName=document.getElementById("fashionName");
+let fashionDesc=document.getElementById("fashionDesc");
+let fashionLink=document.getElementById("fashionLink");
+let star=document.getElementById("star");
+let wardrobeDiv=document.getElementById("wardrobeItems");
+
+let x=100,y=400;
+player.style.left=x+"px";
+player.style.top=y+"px";
+let speed=10;
+
+// MULTI-ROOM SWITCH
+function switchRoom(room){document.querySelectorAll(".room").forEach(r=>r.classList.remove("active"));document.getElementById(room).classList.add("active");currentRoom=room;x=100;y=400;player.style.left=x+"px";player.style.top=y+"px";}
+
+// WALKING
+document.addEventListener("keydown", e=>{
+  if(e.key==="ArrowUp") y-=speed;if(e.key==="ArrowDown") y+=speed;
+  if(e.key==="ArrowLeft") x-=speed;if(e.key==="ArrowRight") x+=speed;
+  x=Math.max(0,Math.min(760,x));y=Math.max(0,Math.min(560,y));
+  player.style.left=x+"px";player.style.top=y+"px";
+  checkInteractions();
+});
+
+// FASHION ITEMS DATA
+const fashionItems={
+  cafe:[
+    {elX:200,elY:400,name:"Gothic Cyber Coat",desc:"Star’s signature coat.",img:"https://i.imgur.com/pkTZk3H.png",link:"https://amazon.com"},
+    {elX:500,elY:350,name:"Neon Boots",desc:"Glowing boots.",img:"https://i.imgur.com/3DpX0Sh.png",link:"https://amazon.com"},
+    {elX:300,elY:500,name:"Void Latte Mug",desc:"Midnight café drink.",img:"https://i.imgur.com/X3y7q1f.png",link:"#"}
+  ],
+  library:[{elX:350,elY:200,name:"Forbidden Romance Book",desc:"Explore love stories.",img:"https://i.imgur.com/pkTZk3H.png",link:"#"}],
+  wardrobe:[{elX:300,elY:200,name:"Gothic Coat",desc:"Wardrobe piece.",img:"https://i.imgur.com/pkTZk3H.png",link:"https://amazon.com"}],
+  market:[{elX:350,elY:200,name:"Cyberpunk Vendor Item",desc:"Rare accessory.",img:"https://i.imgur.com/pkTZk3H.png",link:"https://amazon.com"}]
+};
+
+// PLAYER COLLECTION
+let wardrobeCollection=[];
+
+// INTERACTIONS
+function checkInteractions(){
+  document.querySelectorAll("#"+currentRoom+" .door").forEach(d=>{
+    let dx=parseInt(d.style.left)||0;let dy=parseInt(d.style.top)||0;
+    if(Math.abs(x-dx)<50 && Math.abs(y-dy)<50){switchRoom(d.dataset.room);}
+  });
+  if(currentRoom==="cafe"){let sx=parseInt(star.style.left),sy=parseInt(star.style.top);if(Math.abs(x-sx)<60 && Math.abs(y-sy)<60){showFashion("Star says: Welcome! Explore and find my style.");return;}}
+  fashionItems[currentRoom].forEach(item=>{if(Math.abs(x-item.elX)<40 && Math.abs(y-item.elY)<40){showFashion(item.name,item.desc,item.img,item.link,true);}});
+}
+
+// SHOW FASHION CARD (collect + try-on)
+function showFashion(name,desc,img,link,collectable=false){
+  fashionCard.style.display="block";
+  fashionName.innerText=name;
+  fashionDesc.innerText=desc;
+  fashionImg.src=img||"https://i.imgur.com/pkTZk3H.png";
+  fashionLink.href=link||"#";
+
+  if(collectable && !wardrobeCollection.find(i=>i.name===name)){
+    wardrobeCollection.push({name,desc,img,link});
+    updateWardrobe();
+  }
+}
+
+// CLOSE CARD
+function closeFashionCard(){fashionCard.style.display="none";}
+
+// UPDATE WARDROBE PANEL + TRY-ON
+function updateWardrobe(){
+  wardrobeDiv.innerHTML="";
+  wardrobeCollection.forEach(item=>{
+    let img=document.createElement("img");img.src=item.img;img.title=item.name;
+    img.onclick=()=>{player.style.background=`url(${item.img}) center/cover no-repeat`;};
+    wardrobeDiv.appendChild(img);
+  });
+}
+
+// CONTINUOUS NEON RAIN
+function createContinuousRain(){
+  for(let i=0;i<150;i++){
+    let drop=document.createElement("div");
+    drop.classList.add("rain");
+    drop.style.left=Math.random()*800+"px";
+    drop.style.opacity=Math.random()*0.3+0.3;
+    drop.style.animationDuration=(0.7+Math.random()*1.3)+"s";
+    drop.style.animationDelay=(Math.random()*2)+"s";
+    document.querySelector(".world").appendChild(drop);
+  }
+}
+createContinuousRain();
+
+// FLICKERING LIGHTS
+setInterval(()=>{document.querySelectorAll(".item").forEach(el=>{el.style.boxShadow=`0 0 ${5+Math.random()*20}px #ff7ae6`;});},150);
+
+</script>
+</body>
+</html>
