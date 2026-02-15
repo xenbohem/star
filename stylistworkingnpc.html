@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Star's Cyberpunk Café Stylist</title>
+<style>
+body{margin:0;background:#050510;font-family:monospace;overflow:hidden;color:white;}
+.world{width:800px;height:600px;margin:auto;margin-top:20px;position:relative;background:#050510;border:2px solid #333;overflow:hidden;}
+.room{width:100%;height:100%;position:absolute;display:none;}
+.active{display:block;}
+.player{width:40px;height:40px;position:absolute;border-radius:8px;background:#ff4da6;box-shadow:0 0 15px cyan;z-index:10;}
+.star{width:60px;height:60px;position:absolute;background:linear-gradient(45deg,#ff4da6,#7a5cff);border-radius:50%;box-shadow:0 0 25px violet;z-index:9;}
+.item{position:absolute;width:50px;height:50px;border-radius:6px;z-index:5;}
+.table{background:#2a1a44;}
+.counter{background:#111;}
+.book{background:#ff4da6;}
+.coat{background:#7a5cff;}
+.vendor{background:#ffaa00;}
+.door{width:60px;height:80px;position:absolute;background:#fff;opacity:0.15;z-index:7;}
+#prompt{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:#111;padding:8px 16px;border-radius:8px;border:1px solid #ff4da6;display:none;z-index:30;}
+.panel{position:absolute;top:10px;left:10px;background:#111;border:1px solid #ff4da6;padding:10px;border-radius:10px;z-index:20;width:220px;}
+button{background:#ff4da6;border:none;padding:6px 10px;border-radius:6px;color:white;cursor:pointer;margin-top:5px;}
+.modal{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#111;padding:20px;border-radius:12px;border:1px solid #ff4da6;z-index:50;width:300px;text-align:center;}
+.hidden{display:none;}
+.rain{position:absolute;width:2px;background:cyan;top:-20px;z-index:1;animation:fall linear forwards;}
+@keyframes fall{to{transform:translateY(650px);}}
+</style>
+</head>
+<body>
+
+<div class="world">
+
+<div id="prompt">Press E to interact</div>
+
+<div id="budgetModal" class="modal">
+<h3>Welcome, Stylist ✨</h3>
+<p>What kind of treasure are we working with tonight?</p>
+<button onclick="setBudget(25)">Under $25</button>
+<button onclick="setBudget(75)">$25–$75</button>
+<button onclick="setBudget(150)">$75–$150</button>
+<button onclick="setBudget(999)">Luxury Mode</button>
+</div>
+
+<div class="panel">
+<div>Budget: <span id="budgetDisplay">Not set</span></div>
+<div>Outfit Total: $<span id="totalDisplay">0</span></div>
+<div id="budgetStatus"></div>
+<button onclick="previewPurchase()">Preview Purchase</button>
+</div>
+
+<div id="previewModal" class="modal hidden">
+<h3>Your Curated Outfit</h3>
+<div id="previewItems"></div>
+<h4>Total: $<span id="previewTotal"></span></h4>
+<button onclick="proceedPurchase()">Visit Store</button>
+<button onclick="closePreview()">Close</button>
+</div>
+
+<div id="cafe" class="room active">
+<div id="player" class="player"></div>
+<div id="star" class="star" style="left:350px;top:200px;"></div>
+<div class="item coat" style="left:200px;top:400px;"></div>
+<div class="item vendor" style="left:500px;top:350px;"></div>
+</div>
+
+</div>
+
+<script>
+
+let player=document.getElementById("player");
+let promptBox=document.getElementById("prompt");
+let budget=0;
+let outfitTotal=0;
+let collected=[];
+let interactReady=null;
+let x=100,y=400,speed=3,keys={};
+
+const items=[
+{room:"cafe",x:200,y:400,name:"Cyber Coat",price:49,link:"https://amazon.com"},
+{room:"cafe",x:500,y:350,name:"Neon Boots",price:39,link:"https://amazon.com"}
+];
+
+function setBudget(amount){
+budget=amount;
+document.getElementById("budgetDisplay").innerText="$"+amount;
+document.getElementById("budgetModal").classList.add("hidden");
+}
+
+document.addEventListener("keydown",e=>{
+keys[e.key.toLowerCase()]=true;
+if(e.key.toLowerCase()==="e" && interactReady) interactReady();
+});
+document.addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+
+function move(){
+let nx=x,ny=y;
+if(keys["arrowup"]||keys["w"]) ny-=speed;
+if(keys["arrowdown"]||keys["s"]) ny+=speed;
+if(keys["arrowleft"]||keys["a"]) nx-=speed;
+if(keys["arrowright"]||keys["d"]) nx+=speed;
+x=Math.max(0,Math.min(760,nx));
+y=Math.max(0,Math.min(560,ny));
+player.style.left=x+"px";
+player.style.top=y+"px";
+checkInteractions();
+requestAnimationFrame(move);
+}
+move();
+
+function checkInteractions(){
+interactReady=null;
+promptBox.style.display="none";
+items.forEach(item=>{
+if(Math.abs(x-item.x)<40 && Math.abs(y-item.y)<40){
+interactReady=()=>collectItem(item);
+promptBox.style.display="block";
+}
+});
+}
+
+function collectItem(item){
+if(item.price<=budget || budget===999){
+if(!collected.includes(item)){
+collected.push(item);
+outfitTotal+=item.price;
+updateUI();
+}
+}else{
+alert("This piece exceeds your selected treasure range ✨");
+}
+}
+
+function updateUI(){
+document.getElementById("totalDisplay").innerText=outfitTotal;
+if(outfitTotal<=budget){
+document.getElementById("budgetStatus").innerText="Within Budget ✓";
+}else{
+document.getElementById("budgetStatus").innerText="Over Budget ⚠";
+}
+}
+
+function previewPurchase(){
+let preview=document.getElementById("previewItems");
+preview.innerHTML="";
+collected.forEach(i=>{
+preview.innerHTML+=`<div>${i.name} - $${i.price}</div>`;
+});
+document.getElementById("previewTotal").innerText=outfitTotal;
+document.getElementById("previewModal").classList.remove("hidden");
+}
+
+function proceedPurchase(){
+collected.forEach(i=>window.open(i.link,"_blank"));
+}
+
+function closePreview(){
+document.getElementById("previewModal").classList.add("hidden");
+}
+
+function spawnRain(){
+let drop=document.createElement("div");
+drop.classList.add("rain");
+drop.style.left=Math.random()*800+"px";
+drop.style.height=(10+Math.random()*20)+"px";
+drop.style.animationDuration=(1+Math.random()*1.5)+"s";
+document.querySelector(".world").appendChild(drop);
+setTimeout(()=>drop.remove(),2500);
+}
+setInterval(spawnRain,80);
+
+</script>
+</body>
+</html>
