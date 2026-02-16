@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Star's Cyberpunk Café Stylist + Full Collection</title>
+<style>
+body{margin:0;background:#050510;font-family:monospace;overflow:hidden;color:white;}
+.world{width:800px;height:600px;margin:auto;margin-top:20px;position:relative;background:#050510;border:2px solid #333;overflow:hidden;}
+.room{width:100%;height:100%;position:absolute;display:none;}
+.active{display:block;}
+.player{width:40px;height:40px;position:absolute;border-radius:8px;background:#ff4da6;box-shadow:0 0 15px cyan;z-index:10;}
+.star{width:60px;height:60px;position:absolute;background:linear-gradient(45deg,#ff4da6,#7a5cff);border-radius:50%;box-shadow:0 0 25px violet;z-index:9;
+  animation: starPulse 2s ease-in-out infinite;
+}
+.item{position:absolute;width:50px;height:50px;border-radius:6px;z-index:5;}
+.table{background:#2a1a44;}
+.counter{background:#111;}
+.book{background:#ff4da6;}
+.coat{background:#7a5cff;}
+.vendor{background:#ffaa00;}
+.door{width:60px;height:80px;position:absolute;background:#fff;opacity:0.15;z-index:7;}
+#prompt{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:#111;padding:8px 16px;border-radius:8px;border:1px solid #ff4da6;display:none;z-index:30;}
+.panel{position:absolute;top:10px;left:10px;background:#111;border:1px solid #ff4da6;padding:10px;border-radius:10px;z-index:20;width:220px;}
+button{background:#ff4da6;border:none;padding:6px 10px;border-radius:6px;color:white;cursor:pointer;margin-top:5px;}
+.modal{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#111;padding:20px;border-radius:12px;border:1px solid #ff4da6;z-index:50;width:300px;text-align:center;}
+.hidden{display:none;}
+.rain{position:absolute;width:2px;top:-20px;animation:fall linear forwards;}
+@keyframes fall{to{transform:translateY(650px);}}
+@keyframes bounce {0%,100%{transform:translateX(-50%) scale(1);}50%{transform:translateX(-50%) scale(1.1);}}
+@keyframes starPulse {0%,100% {transform: scale(1); box-shadow:0 0 25px violet;}50% {transform: scale(1.08); box-shadow:0 0 40px violet;}}
+.cabinet{position:absolute;top:50px;right:10px;width:150px;height:500px;border:2px solid #7a5cff;border-radius:10px;padding:5px;display:grid;grid-template-columns:repeat(2,1fr);grid-gap:10px;z-index:8;background:rgba(0,0,0,0.3);}
+.cabinet .item{width:60px;height:60px;cursor:pointer;}
+</style>
+</head>
+<body>
+
+<div class="world">
+<div id="prompt">Press E to interact</div>
+
+<!-- Budget Modal -->
+<div id="budgetModal" class="modal">
+<h3>Welcome, Stylist ✨</h3>
+<p>What kind of treasure are we working with tonight?</p>
+<button onclick="setBudget(25)" style="background:#4dd2b3">Under $25</button>
+<button onclick="setBudget(75)" style="background:#66ffcc">$25–$75</button>
+<button onclick="setBudget(150)" style="background:#99ff99">$75–$150</button>
+<button onclick="setBudget(999)" style="background:#00ffd5">Luxury Mode</button>
+</div>
+
+<!-- Budget Panel -->
+<div class="panel" id="budgetPanel">
+<div>Budget: <span id="budgetDisplay">Not set</span> <button onclick="openBudgetModal()">Change Budget</button></div>
+<div>Outfit Total: $<span id="totalDisplay">0</span></div>
+<div id="budgetStatus"></div>
+<button onclick="previewPurchase()">Preview Purchase</button>
+</div>
+
+<!-- Preview Modal -->
+<div id="previewModal" class="modal hidden">
+<h3>Your Curated Outfit</h3>
+<div id="previewItems"></div>
+<h4>Total: $<span id="previewTotal"></span></h4>
+<button onclick="proceedPurchase()">Visit Store</button>
+<button onclick="closePreview()">Close</button>
+</div>
+
+<!-- Café Room -->
+<div id="cafe" class="room active">
+<div id="player" class="player"></div>
+<div id="star" class="star" style="left:350px;top:200px;"></div>
+<div class="item coat" data-name="Cyber Coat" data-price="49" data-link="https://amazon.com" style="left:200px;top:400px;"></div>
+<div class="item vendor" data-name="Neon Boots" data-price="39" data-link="https://amazon.com" style="left:500px;top:350px;"></div>
+<div class="item table" data-name="Void Latte Mug" data-price="15" data-link="https://amazon.com" style="left:300px;top:500px;"></div>
+<div class="door" style="left:50px;top:250px;" data-room="wardrobe"></div>
+<div class="door" style="right:50px;top:250px;" data-room="library"></div>
+
+<!-- Star's Cabinet -->
+<div class="cabinet" id="cabinet"></div>
+</div>
+
+<!-- Wardrobe Room -->
+<div id="wardrobe" class="room">
+<div class="item coat" data-name="Gothic Coat" data-price="79" data-link="https://amazon.com" style="left:300px;top:200px;"></div>
+<div class="item rack" data-name="Accessory Rack" data-price="30" data-link="https://amazon.com" style="left:450px;top:250px;"></div>
+<div class="door" style="left:350px;bottom:20px;" data-room="cafe"></div>
+</div>
+
+<!-- Library Room -->
+<div id="library" class="room">
+<div class="item book" data-name="Forbidden Romance Book" data-price="18" data-link="#" style="left:350px;top:200px;"></div>
+<div class="door" style="left:350px;bottom:20px;" data-room="cafe"></div>
+</div>
+
+<script>
+let player = document.getElementById("player");
+let promptBox = document.getElementById("prompt");
+let budget = 0;
+let outfitTotal = 0;
+let collected = [];
+let interactReady = null;
+let currentRoom = "cafe";
+let x = 100, y = 400, speed = 4;
+player.style.left = x + "px";
+player.style.top = y + "px";
+
+// Collect all interactive items in current room
+function getRoomItems(){
+  return Array.from(document.querySelectorAll(`.room.active .item`)).map(el=>({
+    el: el,
+    name: el.dataset.name,
+    price: Number(el.dataset.price)||0,
+    link: el.dataset.link||"#"
+  }));
+}
+
+const starTips = [
+  "Welcome, stylist! Explore and find my signature pieces ✨",
+  "Remember: not all treasures are under $25, but style is priceless!",
+  "Try mixing colors — neon boots go great with cyber coats!",
+  "Check the wardrobe for hidden surprises 😎",
+  "Hover near items to see if they fit your budget!",
+];
+
+let lastTipIndex = -1;
+const budgetPanel = document.getElementById("budgetPanel");
+
+function openBudgetModal(){document.getElementById("budgetModal").classList.remove("hidden");}
+function setBudget(amount){
+  budget = amount;
+  let color = (amount<=25)?"#4dd2b3":(amount<=75)?"#66ffcc":(amount<=150)?"#99ff99":"#00ffd5";
+  budgetPanel.style.borderColor = color;
+  document.getElementById("budgetDisplay").innerText="$"+amount;
+  document.getElementById("budgetDisplay").style.color=color;
+  document.getElementById("budgetModal").classList.add("hidden");
+  updateItemStates();
+}
+
+let keys = {};
+document.addEventListener("keydown", e => { keys[e.key.toLowerCase()] = true; if(e.key.toLowerCase()==="e" && interactReady) interactReady(); });
+document.addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
+
+function move(){
+  let nx=x, ny=y;
+  if(keys["arrowup"]||keys["w"]) ny-=speed;
+  if(keys["arrowdown"]||keys["s"]) ny+=speed;
+  if(keys["arrowleft"]||keys["a"]) nx-=speed;
+  if(keys["arrowright"]||keys["d"]) nx+=speed;
+  x=Math.max(0, Math.min(760, nx));
+  y=Math.max(0, Math.min(560, ny));
+  player.style.left=x+"px";
+  player.style.top=y+"px";
+  checkInteractions();
+  requestAnimationFrame(move);
+}
+move();
+
+function showStarTip(){
+  let tipIndex;
+  do { tipIndex = Math.floor(Math.random()*starTips.length); } while(tipIndex===lastTipIndex);
+  lastTipIndex = tipIndex;
+  promptBox.innerText = starTips[tipIndex];
+  promptBox.style.background="#111";
+}
+
+function checkInteractions(){
+  interactReady=null; promptBox.style.display="none";
+  getRoomItems().forEach(item=>{
+    let rect = item.el.getBoundingClientRect();
+    if(Math.abs(x-rect.left)<40 && Math.abs(y-rect.top)<40){
+      if(item.price<=budget || budget===999){
+        promptBox.style.display="block";
+        promptBox.innerText=`Press E to collect ${item.name}`;
+        interactReady=()=>collectItem(item);
+      }
+    }
+  });
+  let sx=350, sy=200;
+  if(currentRoom==="cafe" && Math.abs(x-sx)<60 && Math.abs(y-sy)<60){
+    promptBox.style.display="block"; interactReady = showStarTip;
+  }
+}
+
+function collectItem(item){
+  if(!collected.includes(item)){
+    collected.push(item); outfitTotal+=item.price; updateUI();
+  } else {
+    promptBox.style.background="rgba(138,43,226,0.7)"; promptBox.style.animation="bounce 0.3s";
+    setTimeout(()=>{promptBox.style.background="#111"; promptBox.style.animation="";},300);
+  }
+}
+
+function updateUI(){
+  document.getElementById("totalDisplay").innerText=outfitTotal;
+  document.getElementById("budgetStatus").innerText=(outfitTotal<=budget)?"Within Budget ✓":"Over Budget ⚠";
+}
+
+function updateItemStates(){
+  let affordable=false;
+  getRoomItems().forEach(item=>{
+    if(item.price>budget && budget!==999){ item.el.style.opacity=0.4; item.el.style.cursor='not-allowed'; }
+    else { item.el.style.opacity=1; item.el.style.cursor='pointer'; affordable=true; }
+  });
+  if(!affordable){
+    document.getElementById("budgetStatus").innerHTML=`No items under $${budget} yet 😅.<br><button onclick="switchRoom('wardrobe')">Explore the Wardrobe</button>`;
+  }
+}
+
+function previewPurchase(){
+  let preview=document.getElementById("previewItems"); preview.innerHTML="";
+  collected.forEach(i=>{preview.innerHTML+=`<div>${i.name} - $${i.price}</div>`});
+  document.getElementById("previewTotal").innerText=outfitTotal;
+  document.getElementById("previewModal").classList.remove("hidden");
+}
+
+function proceedPurchase(){collected.forEach(i=>window.open(i.link,"_blank"));}
+function closePreview(){document.getElementById("previewModal").classList.add("hidden");}
+
+function spawnRain(){
+  for(let i=0;i<2;i++){ let drop=document.createElement("div"); drop.classList.add("rain"); drop.style.left=Math.random()*800+"px"; drop.style.height=(8+Math.random()*10)+"px"; drop.style.background="rgba(100,149,237,0.15)"; drop.style.zIndex=0; drop.style.animationDuration=(1.5+Math.random()*1.5)+"s"; document.querySelector(".world").appendChild(drop); setTimeout(()=>drop.remove(),3000); }
+  for(let i=0;i<1;i++){ let drop=document.createElement("div"); drop.classList.add("rain"); drop.style.left=Math.random()*800+"px"; drop.style.height=(5+Math.random()*8)+"px"; drop.style.background="rgba(100,149,237,0.25)"; drop.style.zIndex=1; drop.style.animationDuration=(1+Math.random()*1.2)+"s"; document.querySelector(".world").appendChild(drop); setTimeout(()=>drop.remove(),2500); }
+}
+setInterval(spawnRain,80);
+
+function switchRoom(room){
+  document.querySelectorAll(".room").forEach(r=>r.classList.remove("active"));
+  document.getElementById(room).classList.add("active");
+  currentRoom=room; x=100; y=400; player.style.left=x+"px"; player.style.top=y+"px";
+  updateItemStates();
+}
+</script>
+</body>
+</html>
